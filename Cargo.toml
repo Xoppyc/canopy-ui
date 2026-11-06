@@ -1,0 +1,8 @@
+[package]
+name = "canopy"
+version = "0.1.0"
+edition = "2021"
+description = "Declarative DOM GUI library for the Horizon engine"
+
+[dependencies]
+# I want to keep canopy as minimal and lightweight as possible
