@@ -1,7 +1,5 @@
 //! Layout engine and spatial primitives for Canopy.
 
-use std::ops::Div;
-
 use crate::style::{AlignItems, Edges, FlexDirection, JustifyContent, Style};
 
 /// Screen-space rectangular bounding box.
@@ -135,7 +133,7 @@ pub fn compute_flex_layout(
     items: &[FlexItem],
 ) -> Vec<BoundingBox> {
     let items_empty = items.is_empty();
-    if (items_empty) {
+    if items_empty {
         return Vec::new();
     }
     let is_row = direction.is_row();
@@ -219,4 +217,29 @@ pub fn compute_flex_layout(
     }
     // will later update, just shutting up the compiler
     return output;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_row_center() {
+        let box_area = BoundingBox::new(0.0, 0.0, 200.0, 100.0);
+        let items = vec![FlexItem {
+            style: Style::default(),
+            measured: MeasuredSize::new(50.0, 20.0),
+        }];
+
+        let result = compute_flex_layout(
+            box_area,
+            FlexDirection::Row,
+            JustifyContent::Center,
+            AlignItems::Center,
+            &items,
+        );
+
+        // In a 200x100 box, where should a centered 50x20 item land?
+        assert_eq!(result[0], BoundingBox::new(75.0, 40.0, 50.0, 20.0));
+    }
 }
