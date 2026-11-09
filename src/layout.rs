@@ -1,5 +1,7 @@
 //! Layout engine and spatial primitives for Canopy.
 
+use std::ops::Div;
+
 use crate::style::{AlignItems, Edges, FlexDirection, JustifyContent, Style};
 
 /// Screen-space rectangular bounding box.
@@ -132,5 +134,89 @@ pub fn compute_flex_layout(
     align: AlignItems,
     items: &[FlexItem],
 ) -> Vec<BoundingBox> {
-    todo!("implement flex distribution along main axis and cross axis")
+    let items_empty = items.is_empty();
+    if (items_empty) {
+        return Vec::new();
+    }
+    let is_row = direction.is_row();
+    let (main_avail, cross_avail) = if is_row {
+        (content_box.width, content_box.height)
+    } else {
+        (content_box.height, content_box.width)
+    };
+
+    let mut total_main_size: f32 = 0.0;
+    for item in items {
+        total_main_size += if is_row {
+            item.measured.width + item.style.margin.horizontal()
+        } else {
+            item.measured.height + item.style.margin.vertical()
+        }
+    }
+    let remaining_main = (main_avail - total_main_size).max(0.0);
+
+    let (mut current_main, gap) = match justify {
+        JustifyContent::Start => (0.0, 0.0),
+        JustifyContent::Center => (remaining_main / 2.0, 0.0),
+        JustifyContent::End => (remaining_main, 0.0),
+        JustifyContent::SpaceBetween => {
+            if items.len() <= 1 {
+                (0.0, 0.0)
+            } else {
+                (0.0, (remaining_main / (items.len() - 1) as f32))
+            }
+        }
+    };
+    let mut output: Vec<BoundingBox> = Vec::with_capacity(items.len());
+    if is_row {
+        for item in items {
+            current_main += item.style.margin.left;
+            let avail_h =
+                (cross_avail - item.measured.height - item.style.margin.vertical()).max(0.0);
+
+            let x = content_box.x + current_main;
+            let width = item.measured.width;
+            let base_y = content_box.y + item.style.margin.top;
+            let (y, height) = match align {
+                AlignItems::Start => (base_y, item.measured.height),
+                AlignItems::Center => (base_y + avail_h / 2.0, item.measured.height),
+                AlignItems::End => (base_y + avail_h, item.measured.height),
+                AlignItems::Stretch => (base_y, item.measured.height + avail_h),
+            };
+
+            current_main += width + item.style.margin.right + gap;
+            output.push(BoundingBox {
+                x,
+                y,
+                width,
+                height,
+            });
+        }
+    } else {
+        for item in items {
+            current_main += item.style.margin.top;
+            let avail_w =
+                (cross_avail - item.measured.width - item.style.margin.horizontal()).max(0.0);
+
+            let y = content_box.y + current_main;
+            let height = item.measured.height;
+            let base_x = content_box.x + item.style.margin.left;
+            let (x, width) = match align {
+                AlignItems::Start => (base_x, item.measured.width),
+                AlignItems::Center => (base_x + avail_w / 2.0, item.measured.width),
+                AlignItems::End => (base_x + avail_w, item.measured.width),
+                AlignItems::Stretch => (base_x, item.measured.width + avail_w),
+            };
+
+            current_main += height + item.style.margin.bottom + gap;
+            output.push(BoundingBox {
+                x,
+                y,
+                width,
+                height,
+            });
+        }
+    }
+    // will later update, just shutting up the compiler
+    return output;
 }
