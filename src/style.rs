@@ -120,11 +120,13 @@ pub enum JustifyContent {
 }
 
 // first implementation basic styles list
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Style {
     pub width: Dimension,
     pub height: Dimension,
     pub padding: Edges,
     pub margin: Edges,
+    pub gap: f32,
     pub direction: FlexDirection, // todo \/
     pub align_items: AlignItems,
     pub justify_content: JustifyContent,
@@ -141,6 +143,7 @@ impl Default for Style {
             height: Dimension::Auto,
             padding: Edges::ZERO,
             margin: Edges::ZERO,
+            gap: 0.0,
             direction: FlexDirection::Row,
             align_items: AlignItems::Start,
             justify_content: JustifyContent::Start,
@@ -158,6 +161,7 @@ impl Style {
             height: Dimension::Auto,
             padding: Edges::ZERO,
             margin: Edges::ZERO,
+            gap: 0.0,
             direction: FlexDirection::Row,
             align_items: AlignItems::Start,
             justify_content: JustifyContent::Start,
@@ -208,4 +212,30 @@ impl Style {
         self.border_color = Some(color);
         self
     }
+    pub fn with_gap(mut self, gap: f32) -> Self {
+        self.gap = gap;
+        self
+    }
+}
+
+/// JSX/DSL shorthand for `Dimension::Pixels(val)`.
+#[inline]
+pub fn px(val: f32) -> Dimension {
+    return Dimension::Pixels(val);
+}
+
+/// JSX/DSL shorthand for `Dimension::Percent(val)`.
+#[inline]
+pub fn pct(val: f32) -> Dimension {
+    return Dimension::Percent(val);
+}
+
+/// JSX/DSL shorthand to convert a `0xRRGGBBAA` hex literal into `[r, g, b, a]`.
+#[inline]
+pub fn hex(rgba: u32) -> Color {
+    let r = ((rgba >> 24) & 0xFF) as u8;
+    let g = ((rgba >> 16) & 0xFF) as u8;
+    let b = ((rgba >> 8) & 0xFF) as u8;
+    let a = (rgba & 0xFF) as u8;
+    return [r, g, b, a];
 }

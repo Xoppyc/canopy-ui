@@ -68,6 +68,28 @@ impl BoundingBox {
             height: (self.height - edges.top - edges.bottom).max(0.0),
         }
     }
+
+    /// Expands the bounding box outward by the given edges (used by Inspector to draw margin boxes).
+    #[inline]
+    pub fn outset(&self, edges: &Edges) -> Self {
+        Self {
+            x: self.x - edges.left,
+            y: self.y - edges.top,
+            width: (self.width + edges.left + edges.right).max(0.0),
+            height: (self.height + edges.top + edges.bottom).max(0.0),
+        }
+    }
+
+    /// Shifts the bounding box by `(dx, dy)` (used by ScrollComponent to scroll children).
+    #[inline]
+    pub fn translate(&self, dx: f32, dy: f32) -> Self {
+        return BoundingBox {
+            x: self.x + dx,
+            y: self.y + dy,
+            width: self.width,
+            height: self.height,
+        };
+    }
 }
 
 /// Sizing constraints passed from parent to child during Pass 1 (Measure).
