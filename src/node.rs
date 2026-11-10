@@ -220,8 +220,30 @@ impl Component for Container {
         self.measured
     }
 
-    fn layout(&mut self, _bounds: BoundingBox) {
-        todo!("Pass 2: store bounds, inset by padding+border, run compute_flex_layout, and layout children")
+    fn layout(&mut self, bounds: BoundingBox) {
+        self.bounds = bounds;
+        let content_box = bounds.inset(&self.content_inset());
+        let items: Vec<FlexItem> = self
+            .children
+            .iter()
+            .map(|child| FlexItem {
+                style: *child.style(),
+                measured: child.measured_size(),
+            })
+            .collect();
+
+        // running flex engine on collected items
+        let child_boxes = compute_flex_layout(
+            content_box,
+            self.style.direction,
+            self.style.justify_content,
+            self.style.align_items,
+            &items,
+        );
+
+        for (child, box_bounds) in self.children.iter_mut().zip(child_boxes) {
+            child.layout(box_bounds);
+        }
     }
 
     fn render(&self, _backend: &mut dyn RenderBackend) {
