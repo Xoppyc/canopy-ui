@@ -119,7 +119,6 @@ pub enum JustifyContent {
     SpaceBetween,
 }
 
-// first implementation basic styles list
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Style {
     pub width: Dimension,
@@ -127,7 +126,7 @@ pub struct Style {
     pub padding: Edges,
     pub margin: Edges,
     pub gap: f32,
-    pub direction: FlexDirection, // todo \/
+    pub direction: FlexDirection,
     pub align_items: AlignItems,
     pub justify_content: JustifyContent,
     pub background: Option<Color>,
@@ -135,7 +134,6 @@ pub struct Style {
     pub border_width: f32,
 }
 
-// default styles
 impl Default for Style {
     fn default() -> Self {
         Self {

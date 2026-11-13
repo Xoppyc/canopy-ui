@@ -4,8 +4,7 @@ use std::any::Any;
 
 use crate::event::{EventResult, UIEvent};
 use crate::layout::{compute_flex_layout, BoundingBox, FlexItem, LayoutConstraints, MeasuredSize};
-use crate::style::{Color, Edges, Style};
-use crate::Dimension;
+use crate::style::{Color, Dimension, Edges, Style};
 
 /// Abstraction for measuring text dimensions during Pass 1 (Measure).
 /// Decouples the layout engine from Horizon's GPU font atlas so layouts can be unit-tested.
@@ -44,13 +43,13 @@ pub trait RenderBackend {
             x: bounds.x,
             y: bounds.y + border_width,
             width: border_width,
-            height: bounds.height - 2.0 * border_width.max(0.0),
+            height: (bounds.height - 2.0 * border_width).max(0.0),
         };
         let right_border = BoundingBox {
             x: bounds.x + bounds.width - border_width,
             y: bounds.y + border_width,
             width: border_width,
-            height: bounds.height - 2.0 * border_width.max(0.0),
+            height: (bounds.height - 2.0 * border_width).max(0.0),
         };
         self.fill_rect(top_border, color);
         self.fill_rect(bottom_border, color);
@@ -73,7 +72,9 @@ pub trait RenderBackend {
 
     /// Escape hatch for 3D Model components, custom WGSL Shaders, and Native Minecraft UI bridges!
     /// Allows downcasting `&mut dyn RenderBackend` to the concrete `HorizonRenderBackend`.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        None
+    }
 }
 
 /// The core DOM node interface (analogous to Elementa's `UIComponent` or React's component instance).
@@ -232,7 +233,6 @@ impl Component for Container {
             })
             .collect();
 
-        // running flex engine on collected items
         let child_boxes = compute_flex_layout(
             content_box,
             self.style.direction,
@@ -246,11 +246,37 @@ impl Component for Container {
         }
     }
 
-    fn render(&self, _backend: &mut dyn RenderBackend) {
-        todo!("Pass 3: draw background, draw border, and render each child")
+    fn render(&self, backend: &mut dyn RenderBackend) {
+        if let Some(bg) = self.style.background {
+            backend.fill_rect(self.bounds, bg);
+        }
+        if let Some(border_color) = self.style.border_color {
+            if self.style.border_width > 0.0 {
+                backend.draw_border(self.bounds, self.style.border_width, border_color);
+            }
+        }
+        for child in &self.children {
+            child.render(backend);
+        }
     }
 
-    fn handle_event(&mut self, _event: &mut UIEvent) -> EventResult {
-        todo!("Pass 4: hit-test children in reverse order and bubble the event")
+    fn handle_event(&mut self, event: &mut UIEvent) -> EventResult {
+        if let Some((x, y)) = event.coords() {
+            if !self.bounds.contains(x, y) {
+                return EventResult::Ignored;
+            }
+        }
+
+        let mut result = EventResult::Ignored;
+        for child in self.children.iter_mut().rev() {
+            let r = child.handle_event(event);
+            result = result.or(r);
+
+            if event.is_propagation_stopped() {
+                return result;
+            }
+        }
+
+        result
     }
 }

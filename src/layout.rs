@@ -28,28 +28,24 @@ impl BoundingBox {
         }
     }
 
-    /// Left edge coordinate
     #[inline]
     pub fn left(&self) -> f32 {
-        return self.x;
+        self.x
     }
 
-    /// Right edge coordinate
     #[inline]
     pub fn right(&self) -> f32 {
-        return self.x + self.width;
+        self.x + self.width
     }
 
-    /// Bottom edge coordinate
     #[inline]
     pub fn bottom(&self) -> f32 {
-        return self.y + self.height;
+        self.y + self.height
     }
 
-    /// Top edge coordinate
     #[inline]
     pub fn top(&self) -> f32 {
-        return self.y;
+        self.y
     }
 
     /// Returns true if the given screen coordinate lies within this box.
@@ -237,8 +233,7 @@ pub fn compute_flex_layout(
             });
         }
     }
-    // will later update, just shutting up the compiler
-    return output;
+    output
 }
 
 #[cfg(test)]

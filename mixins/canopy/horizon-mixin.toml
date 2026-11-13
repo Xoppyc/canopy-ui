@@ -7,6 +7,12 @@ priority = 100
 horizon_revision = "6f8c7a0e5d531d3834c4d0be4659a1db8e7e5c2a"
 
 [[module]]
+id = "canopy_core"
+file = "crates/horizon-client/src/game.rs"
+name = "canopy"
+source = "canopy.rs"
+
+[[module]]
 id = "runtime"
 file = "crates/horizon-client/src/game.rs"
 name = "canopy_mod"

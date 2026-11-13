@@ -3,8 +3,8 @@ fn canopy_key(game: &mut crate::game::Game<'_>, key: &str, pressed: bool) {
     if !game.native_on(m::ID) || !pressed {
         return;
     }
-    if key == m::KEY_TOGGLE {
-        let state = m::toggle_playground();
-        log::info!("[canopy] Playground toggled: {state}");
+    let bound = game.native_mod_key(m::ID, m::KEY_TOGGLE, m::DEFAULT_KEY);
+    if key == bound {
+        m::toggle_playground();
     }
 }
