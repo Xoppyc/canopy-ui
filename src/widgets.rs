@@ -32,30 +32,42 @@ impl UIText {
         }
     }
 
-    pub fn with_scale(mut self, _scale: f32) -> Self {
-        todo!("set self.scale and return self")
+    pub fn with_scale(mut self, scale: f32) -> Self {
+        self.scale = scale;
+        self
     }
 
-    pub fn with_color(mut self, _color: Color) -> Self {
-        todo!("set self.color and return self")
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
     }
 
-    pub fn with_wrap(mut self, _wrap: bool) -> Self {
-        todo!("set self.wrap and return self")
+    pub fn with_wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
     }
 
-    pub fn with_style(mut self, _style: Style) -> Self {
-        todo!("set self.style and return self")
+    pub fn with_style(mut self, style: Style) -> Self {
+        self.style = style;
+        self
     }
 }
 
 impl Component for UIText {
     fn name(&self) -> &'static str {
-        if self.wrap { "UIWrappedText" } else { "UIText" }
+        if self.wrap {
+            "UIWrappedText"
+        } else {
+            "UIText"
+        }
     }
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {
@@ -68,18 +80,44 @@ impl Component for UIText {
 
     fn measure(
         &mut self,
-        _constraints: LayoutConstraints,
-        _measurer: &dyn TextMeasurer,
+        constraints: LayoutConstraints,
+        measurer: &dyn TextMeasurer,
     ) -> MeasuredSize {
-        todo!("use measurer.measure_text(&self.text, self.scale) plus padding/border to compute MeasuredSize")
+        let text_size = measurer.measure_text(&self.text, self.scale);
+        let inset_h = self.style.padding.horizontal() + self.style.border_width * 2.0;
+        let inset_v = self.style.padding.vertical() + self.style.border_width * 2.0;
+
+        let final_w = match self.style.width.resolve(constraints.max_width) {
+            Some(w) => w,
+            None => text_size.width + inset_h,
+        };
+
+        let final_h = match self.style.height.resolve(constraints.max_height) {
+            Some(h) => h,
+            None => text_size.height + inset_v,
+        };
+
+        self.measured = MeasuredSize::new(final_w, final_h);
+        self.measured
     }
 
-    fn layout(&mut self, _bounds: BoundingBox) {
-        todo!("store self.bounds = bounds")
+    fn layout(&mut self, bounds: BoundingBox) {
+        self.bounds = bounds;
     }
 
-    fn render(&self, _backend: &mut dyn RenderBackend) {
-        todo!("draw background/border if any, then call backend.draw_text at inset origin")
+    fn render(&self, backend: &mut dyn RenderBackend) {
+        if let Some(bg) = self.style.background {
+            backend.fill_rect(self.bounds, bg);
+        }
+
+        if let Some(border_color) = self.style.border_color {
+            if self.style.border_width > 0.0 {
+                backend.draw_border(self.bounds, self.style.border_width, border_color);
+            }
+        }
+        let text_x = self.bounds.x + self.style.padding.left + self.style.border_width;
+        let text_y = self.bounds.y + self.style.padding.top + self.style.border_width;
+        backend.draw_text(text_x, text_y, &self.text, self.color, self.scale);
     }
 
     fn handle_event(&mut self, _event: &mut UIEvent) -> EventResult {
@@ -111,6 +149,10 @@ impl Component for UIRoundedRectangle {
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {
@@ -188,6 +230,10 @@ impl Component for ScrollComponent {
         &self.style
     }
 
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
+    }
+
     fn bounds(&self) -> BoundingBox {
         self.bounds
     }
@@ -254,6 +300,10 @@ impl Component for UITextInput {
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {
@@ -325,6 +375,10 @@ where
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {

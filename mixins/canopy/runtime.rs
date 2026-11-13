@@ -2,9 +2,10 @@
 // Bridges Horizon's `HudBatch` and `HudAtlas` to Canopy's `RenderBackend` and `TextMeasurer`,
 // and hosts the in-game Canopy Playground & Inspector overlay!
 
+use crate::children;
 use crate::game::canopy::{
     hex, px, BoundingBox, Color, Component, Container, Edges, LayoutConstraints, MeasuredSize,
-    RenderBackend, Style, TextMeasurer,
+    RenderBackend, TextMeasurer, UIText,
 };
 use std::cell::Cell;
 
@@ -83,17 +84,43 @@ pub(super) fn render_playground(
     game: &mut crate::game::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
 ) {
-    let mut root = Container::new(
-        Style::default()
-            .with_width(px(320.0))
-            .with_height(px(180.0))
-            .with_bg(hex(0x181825EE))
-            .with_border(1.5, hex(0x89B4FAFF))
-            .with_padding(Edges::symmetric(16.0, 16.0)),
-    );
+    if game.captured {
+        game.capture(false);
+    }
+    let mut root = Container::column()
+        .with_size(px(320.0), px(240.0))
+        .with_bg(hex(0x181825EE))
+        .with_border(1.5, hex(0x89B4FAFF))
+        .with_padding(Edges::symmetric(16.0, 16.0))
+        .with_gap(10.0)
+        .with_child(
+            UIText::new("Test test")
+                .with_color(hex(0xCDD6F4FF))
+                .with_scale(1.5),
+        )
+        .with_child(
+            Container::column()
+                .with_gap(32.0)
+                .with_padding(Edges::all(8.0))
+                .with_children(children![
+                    UIText::new("BG TEST")
+                        .with_color(hex(0xCDD6F4FF))
+                        .with_bg(hex(0x303040EE))
+                        .with_padding(Edges::symmetric(4.0, 8.0)),
+                    UIText::new("BORDER TEST")
+                        .with_color(hex(0xCDD6F4FF))
+                        .with_border(1.0, hex(0x89B4FAFF))
+                        .with_padding(Edges::symmetric(4.0, 8.0)),
+                    UIText::new("BOTH TEST")
+                        .with_color(hex(0xCDD6F4FF))
+                        .with_bg(hex(0x232330F4))
+                        .with_border(1.0, hex(0x89B4FAFF))
+                        .with_padding(Edges::symmetric(4.0, 8.0)),
+                ]),
+        );
     let measurer = HorizonMeasurer { game };
     root.measure(LayoutConstraints::new(1920.0, 1080.0), &measurer);
-    root.layout(BoundingBox::new(40.0, 40.0, 320.0, 180.0));
+    root.layout(BoundingBox::new(40.0, 40.0, 320.0, 240.0));
 
     let mut backend = HorizonBackend { game, batch };
     root.render(&mut backend);

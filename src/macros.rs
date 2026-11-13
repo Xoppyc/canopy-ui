@@ -12,6 +12,14 @@
 //! };
 //! ```
 
+/// Convenience macro to collect heterogeneous components into `Vec<Box<dyn Component>>`.
+#[macro_export]
+macro_rules! children {
+    ($($c:expr),* $(,)?) => {
+        vec![$(Box::new($c) as Box<dyn $crate::Component>),*]
+    };
+}
+
 #[macro_export]
 macro_rules! ui {
     // TODO: Implement declarative true JSX parsing rules mapping `<Tag prop={val}>...</Tag>` to `.with_child(...)`!

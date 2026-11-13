@@ -9,3 +9,4 @@ pub use event::*;
 pub use layout::*;
 pub use node::*;
 pub use style::*;
+pub use widgets::*;

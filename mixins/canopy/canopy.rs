@@ -400,6 +400,7 @@ pub fn compute_flex_layout(
     direction: FlexDirection,
     justify: JustifyContent,
     align: AlignItems,
+    gap: f32,
     items: &[FlexItem],
 ) -> Vec<BoundingBox> {
     let items_empty = items.is_empty();
@@ -413,17 +414,24 @@ pub fn compute_flex_layout(
         (content_box.height, content_box.width)
     };
 
-    let mut total_main_size: f32 = 0.0;
+    let total_fixed_gap = if items.len() > 1 {
+        (items.len() - 1) as f32 * gap
+    } else {
+        0.0
+    };
+
+    let mut total_items_size: f32 = 0.0;
     for item in items {
-        total_main_size += if is_row {
+        total_items_size += if is_row {
             item.measured.width + item.style.margin.horizontal()
         } else {
             item.measured.height + item.style.margin.vertical()
-        }
+        };
     }
+    let total_main_size = total_items_size + total_fixed_gap;
     let remaining_main = (main_avail - total_main_size).max(0.0);
 
-    let (mut current_main, gap) = match justify {
+    let (mut current_main, extra_gap) = match justify {
         JustifyContent::Start => (0.0, 0.0),
         JustifyContent::Center => (remaining_main / 2.0, 0.0),
         JustifyContent::End => (remaining_main, 0.0),
@@ -431,10 +439,12 @@ pub fn compute_flex_layout(
             if items.len() <= 1 {
                 (0.0, 0.0)
             } else {
-                (0.0, (remaining_main / (items.len() - 1) as f32))
+                (0.0, remaining_main / (items.len() - 1) as f32)
             }
         }
     };
+    let step_gap = gap + extra_gap;
+
     let mut output: Vec<BoundingBox> = Vec::with_capacity(items.len());
     if is_row {
         for item in items {
@@ -452,7 +462,7 @@ pub fn compute_flex_layout(
                 AlignItems::Stretch => (base_y, item.measured.height + avail_h),
             };
 
-            current_main += width + item.style.margin.right + gap;
+            current_main += width + item.style.margin.right + step_gap;
             output.push(BoundingBox {
                 x,
                 y,
@@ -476,7 +486,7 @@ pub fn compute_flex_layout(
                 AlignItems::Stretch => (base_x, item.measured.width + avail_w),
             };
 
-            current_main += height + item.style.margin.bottom + gap;
+            current_main += height + item.style.margin.bottom + step_gap;
             output.push(BoundingBox {
                 x,
                 y,
@@ -485,8 +495,7 @@ pub fn compute_flex_layout(
             });
         }
     }
-    // will later update, just shutting up the compiler
-    return output;
+    output
 }
 
 #[cfg(test)]
@@ -506,6 +515,7 @@ mod tests {
             FlexDirection::Row,
             JustifyContent::Center,
             AlignItems::Center,
+            0.0,
             &items,
         );
 
@@ -762,40 +772,79 @@ pub trait RenderBackend {
 
 /// The core DOM node interface (analogous to Elementa's `UIComponent` or React's component instance).
 pub trait Component {
-    /// Human-readable component type name (e.g. `"Container"`, `"UIText"`, `"ScrollComponent"`).
-    /// Used by the in-game `CanopyInspector` tree view.
     fn name(&self) -> &'static str;
-
-    /// Returns this component's style rules.
     fn style(&self) -> &Style;
-
-    /// Returns the screen-space bounding box computed during the most recent `layout` pass.
+    fn style_mut(&mut self) -> &mut Style;
     fn bounds(&self) -> BoundingBox;
-
-    /// Returns the intrinsic size computed during the most recent `measure` pass.
     fn measured_size(&self) -> MeasuredSize;
-
-    /// Returns a slice of child components (defaults to empty `&[]` for leaf nodes).
-    /// Enables the `CanopyInspector` to walk the entire DOM tree generically.
     fn children(&self) -> &[Box<dyn Component>] {
         &[]
     }
-
-    /// Pass 1 (Bottom-Up): Computes and stores the desired outer size (content + padding + border).
     fn measure(
         &mut self,
         constraints: LayoutConstraints,
         measurer: &dyn TextMeasurer,
     ) -> MeasuredSize;
-
-    /// Pass 2 (Top-Down): Assigns final screen-space `bounds` and positions any children.
     fn layout(&mut self, bounds: BoundingBox);
-
-    /// Pass 3: Emits draw calls to the `RenderBackend`.
     fn render(&self, backend: &mut dyn RenderBackend);
-
-    /// Pass 4: Processes an input event (hit-testing & bubbling).
     fn handle_event(&mut self, event: &mut UIEvent) -> EventResult;
+
+    fn with_bg(mut self, color: Color) -> Self where Self: Sized {
+        self.style_mut().background = Some(color);
+        self
+    }
+
+    fn with_border(mut self, width: f32, color: Color) -> Self where Self: Sized {
+        self.style_mut().border_width = width;
+        self.style_mut().border_color = Some(color);
+        self
+    }
+
+    fn with_padding(mut self, padding: Edges) -> Self where Self: Sized {
+        self.style_mut().padding = padding;
+        self
+    }
+
+    fn with_margin(mut self, margin: Edges) -> Self where Self: Sized {
+        self.style_mut().margin = margin;
+        self
+    }
+
+    fn with_size(mut self, width: Dimension, height: Dimension) -> Self where Self: Sized {
+        self.style_mut().width = width;
+        self.style_mut().height = height;
+        self
+    }
+
+    fn with_width(mut self, width: Dimension) -> Self where Self: Sized {
+        self.style_mut().width = width;
+        self
+    }
+
+    fn with_height(mut self, height: Dimension) -> Self where Self: Sized {
+        self.style_mut().height = height;
+        self
+    }
+
+    fn with_gap(mut self, gap: f32) -> Self where Self: Sized {
+        self.style_mut().gap = gap;
+        self
+    }
+
+    fn with_direction(mut self, direction: super::style::FlexDirection) -> Self where Self: Sized {
+        self.style_mut().direction = direction;
+        self
+    }
+
+    fn with_align(mut self, align: super::style::AlignItems) -> Self where Self: Sized {
+        self.style_mut().align_items = align;
+        self
+    }
+
+    fn with_justify(mut self, justify: super::style::JustifyContent) -> Self where Self: Sized {
+        self.style_mut().justify_content = justify;
+        self
+    }
 }
 
 /// The foundational Flexbox container node (equivalent to Elementa's `UIContainer` + `UIBlock` or HTML `<div>`).
@@ -816,13 +865,24 @@ impl Container {
         }
     }
 
-    /// Builder method to append a child component.
+    pub fn row() -> Self {
+        Self::new(Style::default().with_direction(super::style::FlexDirection::Row))
+    }
+
+    pub fn column() -> Self {
+        Self::new(Style::default().with_direction(super::style::FlexDirection::Column))
+    }
+
     pub fn with_child<C: Component + 'static>(mut self, child: C) -> Self {
         self.children.push(Box::new(child));
         self
     }
 
-    /// Helper: returns the total inset edges combining both `padding` and `border_width`.
+    pub fn with_children(mut self, children: impl IntoIterator<Item = Box<dyn Component>>) -> Self {
+        self.children.extend(children);
+        self
+    }
+
     #[inline]
     pub fn content_inset(&self) -> Edges {
         Edges {
@@ -841,6 +901,10 @@ impl Component for Container {
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {
@@ -922,6 +986,7 @@ impl Component for Container {
             self.style.direction,
             self.style.justify_content,
             self.style.align_items,
+            self.style.gap,
             &items,
         );
 
@@ -966,6 +1031,126 @@ impl Component for Container {
 }
 }
 
+#[allow(unused_imports, dead_code)]
+pub mod widgets {
+    use super::event::{EventResult, UIEvent};
+    use super::layout::{BoundingBox, LayoutConstraints, MeasuredSize};
+    use super::node::{Component, RenderBackend, TextMeasurer};
+    use super::style::{Color, Style};
+
+    pub struct UIText {
+        pub text: String,
+        pub scale: f32,
+        pub color: Color,
+        pub wrap: bool,
+        pub style: Style,
+        pub bounds: BoundingBox,
+        pub measured: MeasuredSize,
+    }
+
+    impl UIText {
+        pub fn new(text: impl Into<String>) -> Self {
+            Self {
+                text: text.into(),
+                scale: 1.0,
+                color: [255, 255, 255, 255],
+                wrap: false,
+                style: Style::default(),
+                bounds: BoundingBox::ZERO,
+                measured: MeasuredSize::ZERO,
+            }
+        }
+
+        pub fn with_scale(mut self, scale: f32) -> Self {
+            self.scale = scale;
+            self
+        }
+
+        pub fn with_color(mut self, color: Color) -> Self {
+            self.color = color;
+            self
+        }
+
+        pub fn with_wrap(mut self, wrap: bool) -> Self {
+            self.wrap = wrap;
+            self
+        }
+
+        pub fn with_style(mut self, style: Style) -> Self {
+            self.style = style;
+            self
+        }
+    }
+
+    impl Component for UIText {
+        fn name(&self) -> &'static str {
+            if self.wrap { "UIWrappedText" } else { "UIText" }
+        }
+
+        fn style(&self) -> &Style {
+            &self.style
+        }
+
+        fn style_mut(&mut self) -> &mut Style {
+            &mut self.style
+        }
+
+        fn bounds(&self) -> BoundingBox {
+            self.bounds
+        }
+
+        fn measured_size(&self) -> MeasuredSize {
+            self.measured
+        }
+
+        fn measure(
+            &mut self,
+            constraints: LayoutConstraints,
+            measurer: &dyn TextMeasurer,
+        ) -> MeasuredSize {
+            let text_size = measurer.measure_text(&self.text, self.scale);
+            let inset_h = self.style.padding.horizontal() + self.style.border_width * 2.0;
+            let inset_v = self.style.padding.vertical() + self.style.border_width * 2.0;
+
+            let final_w = match self.style.width.resolve(constraints.max_width) {
+                Some(w) => w,
+                None => text_size.width + inset_h,
+            };
+
+            let final_h = match self.style.height.resolve(constraints.max_height) {
+                Some(h) => h,
+                None => text_size.height + inset_v,
+            };
+
+            self.measured = MeasuredSize::new(final_w, final_h);
+            self.measured
+        }
+
+        fn layout(&mut self, bounds: BoundingBox) {
+            self.bounds = bounds;
+        }
+
+        fn render(&self, backend: &mut dyn RenderBackend) {
+            if let Some(bg) = self.style.background {
+                backend.fill_rect(self.bounds, bg);
+            }
+
+            if let Some(border_color) = self.style.border_color {
+                if self.style.border_width > 0.0 {
+                    backend.draw_border(self.bounds, self.style.border_width, border_color);
+                }
+            }
+            let text_x = self.bounds.x + self.style.padding.left + self.style.border_width;
+            let text_y = self.bounds.y + self.style.padding.top + self.style.border_width;
+            backend.draw_text(text_x, text_y, &self.text, self.color, self.scale);
+        }
+
+        fn handle_event(&mut self, _event: &mut UIEvent) -> EventResult {
+            EventResult::Ignored
+        }
+    }
+}
+
 #[allow(unused_imports)]
 pub use event::*;
 #[allow(unused_imports)]
@@ -974,3 +1159,14 @@ pub use layout::*;
 pub use node::*;
 #[allow(unused_imports)]
 pub use style::*;
+#[allow(unused_imports)]
+pub use widgets::*;
+
+#[macro_export]
+macro_rules! children {
+    ($($c:expr),* $(,)?) => {
+        vec![$(Box::new($c) as Box<dyn Component>),*]
+    };
+}
+#[allow(unused_imports)]
+pub use crate::children;

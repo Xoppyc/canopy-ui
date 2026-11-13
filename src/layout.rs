@@ -148,6 +148,7 @@ pub fn compute_flex_layout(
     direction: FlexDirection,
     justify: JustifyContent,
     align: AlignItems,
+    gap: f32,
     items: &[FlexItem],
 ) -> Vec<BoundingBox> {
     let items_empty = items.is_empty();
@@ -161,17 +162,24 @@ pub fn compute_flex_layout(
         (content_box.height, content_box.width)
     };
 
-    let mut total_main_size: f32 = 0.0;
+    let total_fixed_gap = if items.len() > 1 {
+        (items.len() - 1) as f32 * gap
+    } else {
+        0.0
+    };
+
+    let mut total_items_size: f32 = 0.0;
     for item in items {
-        total_main_size += if is_row {
+        total_items_size += if is_row {
             item.measured.width + item.style.margin.horizontal()
         } else {
             item.measured.height + item.style.margin.vertical()
-        }
+        };
     }
+    let total_main_size = total_items_size + total_fixed_gap;
     let remaining_main = (main_avail - total_main_size).max(0.0);
 
-    let (mut current_main, gap) = match justify {
+    let (mut current_main, extra_gap) = match justify {
         JustifyContent::Start => (0.0, 0.0),
         JustifyContent::Center => (remaining_main / 2.0, 0.0),
         JustifyContent::End => (remaining_main, 0.0),
@@ -179,10 +187,12 @@ pub fn compute_flex_layout(
             if items.len() <= 1 {
                 (0.0, 0.0)
             } else {
-                (0.0, (remaining_main / (items.len() - 1) as f32))
+                (0.0, remaining_main / (items.len() - 1) as f32)
             }
         }
     };
+    let step_gap = gap + extra_gap;
+
     let mut output: Vec<BoundingBox> = Vec::with_capacity(items.len());
     if is_row {
         for item in items {
@@ -200,7 +210,7 @@ pub fn compute_flex_layout(
                 AlignItems::Stretch => (base_y, item.measured.height + avail_h),
             };
 
-            current_main += width + item.style.margin.right + gap;
+            current_main += width + item.style.margin.right + step_gap;
             output.push(BoundingBox {
                 x,
                 y,
@@ -224,7 +234,7 @@ pub fn compute_flex_layout(
                 AlignItems::Stretch => (base_x, item.measured.width + avail_w),
             };
 
-            current_main += height + item.style.margin.bottom + gap;
+            current_main += height + item.style.margin.bottom + step_gap;
             output.push(BoundingBox {
                 x,
                 y,
@@ -253,6 +263,7 @@ mod tests {
             FlexDirection::Row,
             JustifyContent::Center,
             AlignItems::Center,
+            0.0,
             &items,
         );
 

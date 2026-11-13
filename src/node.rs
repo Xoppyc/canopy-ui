@@ -79,40 +79,79 @@ pub trait RenderBackend {
 
 /// The core DOM node interface (analogous to Elementa's `UIComponent` or React's component instance).
 pub trait Component {
-    /// Human-readable component type name (e.g. `"Container"`, `"UIText"`, `"ScrollComponent"`).
-    /// Used by the in-game `CanopyInspector` tree view.
     fn name(&self) -> &'static str;
-
-    /// Returns this component's style rules.
     fn style(&self) -> &Style;
-
-    /// Returns the screen-space bounding box computed during the most recent `layout` pass.
+    fn style_mut(&mut self) -> &mut Style;
     fn bounds(&self) -> BoundingBox;
-
-    /// Returns the intrinsic size computed during the most recent `measure` pass.
     fn measured_size(&self) -> MeasuredSize;
-
-    /// Returns a slice of child components (defaults to empty `&[]` for leaf nodes).
-    /// Enables the `CanopyInspector` to walk the entire DOM tree generically.
     fn children(&self) -> &[Box<dyn Component>] {
         &[]
     }
-
-    /// Pass 1 (Bottom-Up): Computes and stores the desired outer size (content + padding + border).
     fn measure(
         &mut self,
         constraints: LayoutConstraints,
         measurer: &dyn TextMeasurer,
     ) -> MeasuredSize;
-
-    /// Pass 2 (Top-Down): Assigns final screen-space `bounds` and positions any children.
     fn layout(&mut self, bounds: BoundingBox);
-
-    /// Pass 3: Emits draw calls to the `RenderBackend`.
     fn render(&self, backend: &mut dyn RenderBackend);
-
-    /// Pass 4: Processes an input event (hit-testing & bubbling).
     fn handle_event(&mut self, event: &mut UIEvent) -> EventResult;
+
+    fn with_bg(mut self, color: Color) -> Self where Self: Sized {
+        self.style_mut().background = Some(color);
+        self
+    }
+
+    fn with_border(mut self, width: f32, color: Color) -> Self where Self: Sized {
+        self.style_mut().border_width = width;
+        self.style_mut().border_color = Some(color);
+        self
+    }
+
+    fn with_padding(mut self, padding: Edges) -> Self where Self: Sized {
+        self.style_mut().padding = padding;
+        self
+    }
+
+    fn with_margin(mut self, margin: Edges) -> Self where Self: Sized {
+        self.style_mut().margin = margin;
+        self
+    }
+
+    fn with_size(mut self, width: Dimension, height: Dimension) -> Self where Self: Sized {
+        self.style_mut().width = width;
+        self.style_mut().height = height;
+        self
+    }
+
+    fn with_width(mut self, width: Dimension) -> Self where Self: Sized {
+        self.style_mut().width = width;
+        self
+    }
+
+    fn with_height(mut self, height: Dimension) -> Self where Self: Sized {
+        self.style_mut().height = height;
+        self
+    }
+
+    fn with_gap(mut self, gap: f32) -> Self where Self: Sized {
+        self.style_mut().gap = gap;
+        self
+    }
+
+    fn with_direction(mut self, direction: crate::style::FlexDirection) -> Self where Self: Sized {
+        self.style_mut().direction = direction;
+        self
+    }
+
+    fn with_align(mut self, align: crate::style::AlignItems) -> Self where Self: Sized {
+        self.style_mut().align_items = align;
+        self
+    }
+
+    fn with_justify(mut self, justify: crate::style::JustifyContent) -> Self where Self: Sized {
+        self.style_mut().justify_content = justify;
+        self
+    }
 }
 
 /// The foundational Flexbox container node (equivalent to Elementa's `UIContainer` + `UIBlock` or HTML `<div>`).
@@ -133,13 +172,24 @@ impl Container {
         }
     }
 
-    /// Builder method to append a child component.
+    pub fn row() -> Self {
+        Self::new(Style::default().with_direction(crate::style::FlexDirection::Row))
+    }
+
+    pub fn column() -> Self {
+        Self::new(Style::default().with_direction(crate::style::FlexDirection::Column))
+    }
+
     pub fn with_child<C: Component + 'static>(mut self, child: C) -> Self {
         self.children.push(Box::new(child));
         self
     }
 
-    /// Helper: returns the total inset edges combining both `padding` and `border_width`.
+    pub fn with_children(mut self, children: impl IntoIterator<Item = Box<dyn Component>>) -> Self {
+        self.children.extend(children);
+        self
+    }
+
     #[inline]
     pub fn content_inset(&self) -> Edges {
         Edges {
@@ -158,6 +208,10 @@ impl Component for Container {
 
     fn style(&self) -> &Style {
         &self.style
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 
     fn bounds(&self) -> BoundingBox {
@@ -238,6 +292,7 @@ impl Component for Container {
             self.style.direction,
             self.style.justify_content,
             self.style.align_items,
+            self.style.gap,
             &items,
         );
 

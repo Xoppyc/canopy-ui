@@ -5,6 +5,7 @@ fn canopy_key(game: &mut crate::game::Game<'_>, key: &str, pressed: bool) {
     }
     let bound = game.native_mod_key(m::ID, m::KEY_TOGGLE, m::DEFAULT_KEY);
     if key == bound {
-        m::toggle_playground();
+        let open = m::toggle_playground();
+        game.capture(!open);
     }
 }
